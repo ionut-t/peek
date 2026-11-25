@@ -19,7 +19,7 @@ func TestCollectEndedInput(t *testing.T) {
 
 func TestCollectOpenInput(t *testing.T) {
 	r, w := io.Pipe()
-	defer w.Close()
+	defer func() { _ = r.Close() }()
 
 	ch := readChunks(r)
 
