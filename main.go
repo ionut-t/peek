@@ -182,8 +182,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.endInput(msg.err)
 
 	case goeditor.SaveMsg:
-		cmd := m.save(msg)
-		return m, cmd
+		return m, m.save(msg)
 
 	case goeditor.ErrorMsg:
 		if msg.ID == core.ErrUnsavedChangesId {

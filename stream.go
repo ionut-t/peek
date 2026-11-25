@@ -79,8 +79,10 @@ func collect(ch <-chan chunk, wait time.Duration) (data []byte, ended bool, err 
 				return data, true, err
 			}
 
+			// An error chunk is the last one: return it now, before the
+			// timer can win the select and drop it.
 			if c.err != nil {
-				err = c.err
+				return data, true, c.err
 			}
 
 			data = append(data, c.data...)
