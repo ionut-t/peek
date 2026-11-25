@@ -1,0 +1,94 @@
+name: Bark
+
+on:
+  pull_request:
+    types: [opened, labeled]
+
+jobs:
+  pr-description:
+    name: Generate PR Description
+    runs-on: ubuntu-latest
+    if: "github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name == 'bark: describe')"
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Pinned to the Bark release that wrote this workflow; the action
+      # installs that same release. Use @v2 to follow every v2 release, or
+      # let Dependabot (github-actions) bump the exact version.
+      - uses: ionut-t/bark/.github/actions/bark-pr-description@v2
+        with:
+          provider: ${{ vars.BARK_PROVIDER }}
+          api-key: ${{ secrets.BARK_API_KEY }}
+          model: ${{ vars.BARK_DESCRIPTION_MODEL || vars.BARK_MODEL }}
+          timeout: ${{ vars.BARK_TIMEOUT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove describe label
+        # Runs even if generating failed, so adding the label again retries.
+        if: always() && github.event.action == 'labeled'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LABEL: ${{ github.event.label.name }}
+        run: gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$LABEL" || true
+
+  review:
+    name: AI Code Review
+    needs: pr-description
+    # Runs when a PR is opened, or when the "bark: review" / "bark: full review"
+    # label is added (removed again below). Other labels, including
+    # "bark: as <name>", don't start a review. always() lets the job run when
+    # pr-description is skipped.
+    if: >-
+      always() && (
+        (github.event.action == 'opened' && needs.pr-description.result == 'success')
+        || (github.event.action == 'labeled'
+          && (github.event.label.name == 'bark: review' || github.event.label.name == 'bark: full review'))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      # GitHub refuses resolveReviewThread to a token with only
+      # pull-requests: write, so resolving fixed threads needs this.
+      # Pull requests from forks get a read-only token whatever it says.
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: ionut-t/bark/.github/actions/bark-review@v2
+        with:
+          provider: ${{ vars.BARK_PROVIDER }}
+          api-key: ${{ secrets.BARK_API_KEY }}
+          model: ${{ vars.BARK_MODEL }}
+          # A "bark: as <name>" label on a pull request (e.g. "bark: as Yoda")
+          # picks the reviewer for it instead; reviewer-from-label: false
+          # turns that off.
+          reviewer: ${{ vars.BARK_REVIEWER }}
+          max-diff-tokens: ${{ vars.BARK_MAX_DIFF_TOKENS }}
+          timeout: ${{ vars.BARK_TIMEOUT }}
+          with-context: true
+          # Posts a pull request review with inline comments. A pull request
+          # Bark reviewed before is then reviewed only from the commit the
+          # last review was made at. Set BARK_INLINE_COMMENTS to false to post
+          # one comment with the whole review instead.
+          inline-comments: ${{ vars.BARK_INLINE_COMMENTS || 'true' }}
+          # Review the whole pull request on every run, not only the new commits.
+          full-review: "${{ github.event.label.name == 'bark: full review' }}"
+          # Fail the job when the review keeps a finding of this severity or
+          # higher (critical, high, medium or low), after posting it. With
+          # inline comments, only new commits are reviewed: add full-review
+          # to fail on every unfixed issue each run.
+          fail-on: high
+          with-description: ${{ needs.pr-description.result == 'success' }}
+          approve: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove review label
+        # Runs even if the review failed, so adding the label again retries.
+        if: always() && github.event.action == 'labeled'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LABEL: ${{ github.event.label.name }}
+        run: gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$LABEL" || true
