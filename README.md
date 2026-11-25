@@ -43,9 +43,15 @@ Anything else is plain text. Markdown is a guess, so ordinary output can
 occasionally be taken for it; use `--lang` to override any of these, for example
 `--lang text`.
 
-peek reads all of its input before opening, so it doesn't follow output that
-never ends, such as `tail -f`. Run without a pipe or redirect, it prints usage
-and exits. When the command prints nothing (a `go build` that succeeds), peek
+Output that keeps coming (`tail -f app.log | peek`, `kubectl logs -f web |& peek`,
+a dev server) is followed like `less +F`: peek opens after a moment and adds
+lines as they arrive. While the cursor is on the last line in normal mode, it
+moves to each new last line; move up and it stays where you put it, and `G`
+resumes following. A line shows once it ends with a newline, or when the input
+ends. Arriving text never counts as an edit, so `u` doesn't remove it and `:q`
+still exits. The language is detected from the first output only.
+
+Run without a pipe or redirect, peek prints usage and exits. When the command prints nothing (a `go build` that succeeds), peek
 prints `peek: no input` and exits instead of opening an empty screen.
 
 ## Keybindings
