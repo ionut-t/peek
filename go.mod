@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/ionut-t/goeditor v0.25.0
+	github.com/ionut-t/goeditor v0.26.0
 	golang.org/x/sys v0.47.0
 )
 

@@ -85,22 +85,32 @@ func TestNewModelLoadsInput(t *testing.T) {
 }
 
 func TestSaveWithoutFileName(t *testing.T) {
-	m := update(t, newModel([]byte("x"), ""), goeditor.SaveMsg{Content: "x"})
+	m := newModel([]byte("x"), "")
 
-	if got := screen(t, m); !strings.Contains(got, "E32: No file name") {
-		t.Errorf("screen does not show E32:\n%s", got)
+	err := m.editor.GetEditor().ExecuteCommand("w")
+	if err == nil || !errors.Is(err, errNoFileName) {
+		t.Fatalf("err = %v, want %v", err, errNoFileName)
 	}
 }
 
 func TestSaveWritesFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.txt")
-	m := update(t, newModel([]byte("x"), ""), goeditor.SaveMsg{Path: &path, Content: "x"})
+	m := newModel([]byte("x"), "")
+
+	if err := m.editor.GetEditor().ExecuteCommand("w " + path); err != nil {
+		t.Fatalf(":w: %v", err)
+	}
 
 	if got := readFile(t, path); got != "x\n" {
 		t.Errorf("file = %q, want %q", got, "x\n")
 	}
+}
 
-	if got := screen(t, m); !strings.Contains(got, "written, 2 bytes") {
+func TestSaveMsgIsShown(t *testing.T) {
+	path := "out.txt"
+	m := update(t, newModel([]byte("x"), ""), goeditor.SaveMsg{Path: &path, Content: "x"})
+
+	if got := screen(t, m); !strings.Contains(got, `"out.txt" written, 2 bytes`) {
 		t.Errorf("screen does not show the write message:\n%s", got)
 	}
 }
