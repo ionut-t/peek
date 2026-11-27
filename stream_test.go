@@ -229,3 +229,25 @@ func TestReadErrorShownWithInput(t *testing.T) {
 		t.Errorf("screen does not show the input and the error:\n%s", got)
 	}
 }
+
+func TestRepaintWhenInputEnds(t *testing.T) {
+	m := streamModel(t, "1\n")
+
+	_, cmd := m.Update(eofMsg{})
+	if cmd == nil {
+		t.Fatal("no command returned")
+	}
+
+	batch, ok := run(cmd).(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("command is not a batch")
+	}
+
+	for _, c := range batch {
+		if c != nil && run(c) == tea.ClearScreen() {
+			return
+		}
+	}
+
+	t.Error("the screen is not repainted at the end of input")
+}

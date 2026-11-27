@@ -137,6 +137,17 @@ func TestQuit(t *testing.T) {
 	}
 }
 
+func TestCtrlLRepaints(t *testing.T) {
+	_, cmd := newModel([]byte("x"), "").Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("no command returned")
+	}
+
+	if run(cmd) != tea.ClearScreen() {
+		t.Error("ctrl+l does not repaint the screen")
+	}
+}
+
 func TestLanguageTheme(t *testing.T) {
 	if got := languageTheme(true); got != "catppuccin-mocha" {
 		t.Errorf("dark theme = %q", got)
