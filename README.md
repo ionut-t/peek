@@ -51,6 +51,10 @@ resumes following. A line shows once it ends with a newline, or when the input
 ends. Arriving text never counts as an edit, so `u` doesn't remove it and `:q`
 still exits. The language is detected from the first output only.
 
+With a plain `|`, the command's stderr still goes to the terminal and is
+written over peek's screen. peek redraws when the input ends, and `ctrl+l`
+redraws at any time, but `|&` keeps the messages in peek instead.
+
 Run without a pipe or redirect, peek prints usage and exits. When the command prints nothing (a `go build` that succeeds), peek
 prints `peek: no input` and exits instead of opening an empty screen.
 
@@ -67,6 +71,7 @@ before saving it.
 | `:x <file>`  | save if you edited the text, and exit  |
 | `:q` / `:q!` | exit                                   |
 | `ctrl+c`     | exit                                   |
+| `ctrl+l`     | redraw the screen                      |
 
 `gx` opens only `http` and `https` links, in your default browser. The text
 comes from other programs, so file paths and other URL schemes are refused:

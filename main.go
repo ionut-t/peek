@@ -179,7 +179,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case eofMsg:
-		return m, m.endInput(msg.err)
+		cmd := m.endInput(msg.err)
+		if m.noInput {
+			return m, cmd
+		}
+
+		// The command's stderr, when not piped (`cmd | peek` rather than
+		// `cmd |& peek`), is written straight over the screen, and the
+		// renderer only redraws what it changed. It mostly comes before the
+		// command exits, so repaint the whole screen then.
+		return m, tea.Batch(cmd, tea.ClearScreen)
 
 	case goeditor.SaveMsg:
 		return m, m.save(msg)
@@ -205,6 +214,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "ctrl+l":
+			// Repaint the whole screen, as in vim and less, over anything
+			// another process wrote to the terminal.
+			return m, tea.ClearScreen
 		}
 	}
 
