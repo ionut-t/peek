@@ -98,6 +98,7 @@ func newModel(data []byte, language string) model {
 	editor.SetCursorMode(goeditor.CursorBlink)
 	editor.ShowRelativeLineNumbers(true)
 	editor.SetMoveAcrossLines(true)
+	editor.SetWriteFunc(writeFile)
 
 	if language != "" {
 		editor.SetLanguage(language, languageTheme(true))
@@ -312,19 +313,37 @@ func (m *model) toEnd() {
 	_ = m.editor.SetCursorPosition(last, 0) // fails only on an empty buffer
 }
 
-// save handles `:w <file>` and reports the result on the status line.
+// writeFile is the editor's write function for `:w <file>`.
+func writeFile(path *string, content string) (core.WriteJob, error) {
+	var name string
+	if path != nil {
+		name = *path
+	}
+
+	_, err := writeContent(name, content)
+
+	return nil, err
+}
+
+// save reports a write that succeeded on the status line.
 func (m *model) save(msg goeditor.SaveMsg) tea.Cmd {
 	var name string
 	if msg.Path != nil {
 		name = *msg.Path
 	}
 
-	n, err := writeContent(name, msg.Content)
-	if err != nil {
-		return m.editor.DispatchError(err, messageDuration)
-	}
+	n := len(withFinalNewline(msg.Content))
 
 	return m.editor.DispatchMessage(fmt.Sprintf("%q written, %d bytes", name, n), messageDuration)
+}
+
+// withFinalNewline ends non-empty content with a newline.
+func withFinalNewline(content string) string {
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+
+	return content
 }
 
 // writeContent writes content to name, expanding a leading "~/", and
@@ -345,9 +364,7 @@ func writeContent(name, content string) (int, error) {
 		path = filepath.Join(home, path[2:])
 	}
 
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
+	content = withFinalNewline(content)
 
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return 0, err
